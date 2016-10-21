@@ -3,7 +3,7 @@
 # 问题:
 # 数字保存在文件中,每个数字一行,每个数字均为7位
 #
-# 一次读取后分割为多个中间工作文件,用多路归并排序
+# 一次读取后分割为多个中间工作文件,用多路归并排序,通过败者树进行优化减少比较
 #
 # 基本思路:
 # 1. 从输入读取可用内存大小的数据,对数据进行内部排序,保存到中间文件
@@ -12,19 +12,57 @@
 # 4. 使用 uuid 生成中间文件名,也可用 tempfile 处理中间文件
 #
 # 注意:
-# 1. python 中的列表使用的内存包括数据结构开销,仅以 chunk_size 表示数据块大小
+# 1. 败者树是一棵完全二叉树,可使用列表保存,这里分开叶子节点和比较节点存储
 # 2. 未处理文件异常等
 # 3. 未有处理重复数据,重复数据不影响排序和输出
-# 4. 内部的排序可直接使用字符串(需要更多空间),或者是转换为数字(需要字符串数字的转换时间)
-#
-# 优化:
-# 使用败者树,减少归并时的比较次数,K越大加速越明显
 
 import uuid
 import random
 import os
 
 MAX = int(1e7)  #所有数字均不超过 MAX
+
+
+def create_tree(leaves):
+    """ 创建败者树
+
+    :param leaves: 叶子节点
+    :return: 败者树(不包含叶子节点)
+    """
+    tree = []
+    n = len(leaves)
+    # 清空败者树,设置指向的叶子节点为 -1
+    for i in range(n):
+        tree.append(-1)
+    # 从后往前调整
+    for i in range(n-1, -1, -1):
+        adjust_tree(tree, leaves, i)
+    return tree
+
+
+def adjust_tree(tree, leaves, s):
+    """ 因叶子节点 s 改变调整败者树
+
+    :param tree: 败者树
+    :param leaves: 叶子节点
+    :param s: 改变的叶子节点下标
+    :return:
+    """
+    # 首先根据叶子节点下标计算出对应的败者树中父节点下标
+    parent = (s + len(tree)) // 2
+    while parent > 0:
+        if s == -1:
+            break
+        # 如果败者树中 parent 位置不指向叶子节点的位置
+        # 或者 parent 位置的叶子节点被打败(以大为败),那么需要调整
+        if tree[parent] == -1 or leaves[s]['num'] > leaves[tree[parent]]['num']:
+            tmp = s
+            s = tree[parent]    # s 指向胜者
+            tree[parent] = tmp  # 败者保存到 parent 位置
+        # 向上调整
+        parent //= 2
+    # 冠军节点
+    tree[0] = s
 
 
 def split(input_file, chunk_size):
@@ -39,7 +77,8 @@ def split(input_file, chunk_size):
     with open(input_file, 'r') as f:
         while True:
             line = f.readline()
-            if not line:
+            # 如果已结束或内存已满,则输出到临时文件
+            if not line or len(chunk) >= chunk_size:
                 if chunk:
                     chunk.sort()
                     temp_file = uuid.uuid4().hex
@@ -48,61 +87,54 @@ def split(input_file, chunk_size):
                             temp_fd.write(str(num)+'\n')
                     temp_files.append(temp_file)
                     del chunk
-                break
+                    chunk = []
+                if not line:
+                    break
             num = int(line.strip())
             chunk.append(num)
-            # 到达块大小则进行排序并输出到中间小文件
-            if len(chunk) >= chunk_size:
-                chunk.sort()
-                temp_file = uuid.uuid4().hex
-                with open(temp_file, 'w') as temp_fd:
-                    for num in chunk:
-                        temp_fd.write(str(num)+'\n')
-                temp_files.append(temp_file)
-                del chunk
-                chunk = []
     return temp_files
 
 
 def merge(input_files, output_file):
-    """ 归并多个有序小文件到一个大文件
+    """ 使用败者树归并多个有序小文件到一个大文件
 
     :param input_files: 输入的有序小文件
     :param output_file: 输出的大文件
     :return:
     """
-    fd_head_map = {}  # 每个文件的描述符号和文件当前整数
+    # 初始化
+    fd_heads = []  # 每个文件的描述符号和文件当前整数
     # 打开输入的中间文件
     for f in input_files:
         fd = open(f, 'r')
-        head = fd.readline()
-        if not head:
+        line = fd.readline()
+        if not line:
+            num = MAX
             fd.close()
         else:
-            fd_head_map[fd] = int(head.strip())
-    # 打开输出文件
-    fd_out = open(output_file, 'w')
+            num = int(line.strip())
+        fd_heads.append({
+            'fd': fd,
+            'num': num
+        })
+    # 创建败者树
+    tree = create_tree(fd_heads)
 
-    # 使用选择最小值输出
-    while len(fd_head_map):
-        min = MAX
-        selected_fd = None
-        for fd in fd_head_map.keys():
-            if min > fd_head_map[fd]:
-                min = fd_head_map[fd]
-                selected_fd = fd
-        # 被选择的文件读取下一个整数,已到文件结束则关闭
-        next_head = selected_fd.readline()
-        if not next_head:
-            fd_head_map.pop(selected_fd)
-            selected_fd.close()
-        else:
-            fd_head_map[selected_fd] = int(next_head)
-        # 当前最小值输出
-        fd_out.write('%07d\n' % min)
-
-    # 本次合并完成
-    fd_out.close()
+    # 从败者树取冠军节点
+    with open(output_file, 'w') as fd_out:
+        # 循环取最小值, 当冠军节点不是 MAX 时进行循环读取调整
+        while fd_heads[tree[0]]['num'] < MAX:
+            champion = fd_heads[tree[0]]
+            fd_out.write('%07d\n' % champion['num'])
+            # 冠军节点更新
+            line = champion['fd'].readline()
+            if not line:
+                champion['num'] = MAX
+                champion['fd'].close()
+            else:
+                champion['num'] = int(line.strip())
+            # 调整败者树
+            adjust_tree(tree, fd_heads, tree[0])
 
 
 def check(file):
@@ -135,13 +167,13 @@ if __name__ == '__main__':
     # 生成输入文件,只生成 1M 个
     print('Generating')
     with open(input_file, 'w') as fd:
-        for i in range(1024*1024):
+        for i in range(1024):
             num = random.randint(0, MAX)
             fd.write('%07d\n' % num)
 
     # 进行分割,分为8个文件,每个文件 128K 个
     print('Splitting')
-    temp_files = split(input_file, 1024*128)
+    temp_files = split(input_file, 128)
 
     # 进行合并
     print('Merging')
