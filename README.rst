@@ -6,15 +6,8 @@
 环境搭建
 --------
 
-采用 python3 ，使用 tox 管理 virtualenv ，使用 py.test 进行测试
+采用 python3 ，使用 py.test 进行测试，使用 flake8 检查代码格式
 
-安装 tox ::
-
-    pip install tox
-
-运行测试 ::
-
-    tox
 
 变更历史
 --------

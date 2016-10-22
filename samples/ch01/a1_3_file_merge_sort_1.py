@@ -1,24 +1,24 @@
 # -*- coding: utf-8 -*-
 #
 # 问题:
-# 数字保存在文件中,每个数字一行,每个数字均为7位
+# 数字保存在文件中，每个数字一行，每个数字均为7位
 #
-# 一次读取后分割为多个中间工作文件,用多路归并排序
+# 一次读取后分割为多个中间工作文件，用多路归并排序
 #
 # 基本思路:
-# 1. 从输入读取可用内存大小的数据,对数据进行内部排序,保存到中间文件
+# 1. 从输入读取可用内存大小的数据，对数据进行内部排序,保存到中间文件
 # 2. 每次同时打开 K 个中间文件,归并输出到一个更大的中间文件
-# 3. 将更大的中间文件重复步骤2,直到得到唯一结果文件
-# 4. 使用 uuid 生成中间文件名,也可用 tempfile 处理中间文件
+# 3. 将更大的中间文件重复步骤2，直到得到唯一结果文件
+# 4. 使用 uuid 生成中间文件名，也可用 tempfile 处理中间文件
 #
 # 注意:
-# 1. python 中的列表使用的内存包括数据结构开销,仅以 chunk_size 表示数据块大小
+# 1. python 中的列表使用的内存包括数据结构开销，仅以 chunk_size 表示数据块大小
 # 2. 未处理文件异常等
-# 3. 未有处理重复数据,重复数据不影响排序和输出
-# 4. 内部的排序可直接使用字符串(需要更多空间),或者是转换为数字(需要字符串数字的转换时间)
+# 3. 未有处理重复数据，重复数据不影响排序和输出
+# 4. 内部的排序可直接使用字符串(需要更多空间)，或者是转换为数字(需要字符串数字的转换时间)
 #
 # 优化:
-# 使用败者树,减少归并时的比较次数,K越大加速越明显
+# 使用败者树，减少归并时的比较次数，K越大加速越明显
 
 import uuid
 import random
@@ -28,7 +28,7 @@ MAX = int(1e7)  #所有数字均不超过 MAX
 
 
 def split(input_file, chunk_size):
-    """ 分割大文件为小文件,并且将小文件数据排序
+    """ 分割大文件为小文件，并且将小文件数据排序
 
     :param input_file: 输入文件
     :param chunk_size: 块大小
@@ -39,7 +39,7 @@ def split(input_file, chunk_size):
     with open(input_file, 'r') as f:
         while True:
             line = f.readline()
-            # 如果已结束或内存已满,则输出到临时文件
+            # 如果已结束或内存已满，则输出到临时文件
             if not line or len(chunk) >= chunk_size:
                 if chunk:
                     chunk.sort()
@@ -84,7 +84,7 @@ def merge(input_files, output_file):
             if min > fd_head_map[fd]:
                 min = fd_head_map[fd]
                 selected_fd = fd
-        # 被选择的文件读取下一个整数,已到文件结束则关闭
+        # 被选择的文件读取下一个整数，已到文件结束则关闭
         next_head = selected_fd.readline()
         if not next_head:
             fd_head_map.pop(selected_fd)
@@ -125,14 +125,14 @@ if __name__ == '__main__':
     input_file = 'input.txt'
     output_file = 'output.txt'
 
-    # 生成输入文件,只生成 1M 个
+    # 生成输入文件，只生成 1M 个
     print('Generating')
     with open(input_file, 'w') as fd:
         for i in range(1024*1024):
             num = random.randint(0, MAX)
             fd.write('%07d\n' % num)
 
-    # 进行分割,分为8个文件,每个文件 128K 个
+    # 进行分割，分为8个文件，每个文件 128K 个
     print('Splitting')
     temp_files = split(input_file, 1024*128)
 
