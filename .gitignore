@@ -59,6 +59,8 @@ docs/_build/
 # PyBuilder
 target/
 
+.idea/
+
 # Temp files
 input.txt
 output.txt
