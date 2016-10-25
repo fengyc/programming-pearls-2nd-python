@@ -17,10 +17,7 @@
 # 3. 未有处理重复数据，重复数据不影响排序和输出
 
 import uuid
-import random
-import os
-
-MAX = int(1e7)  #所有数字均不超过 MAX
+from . import MAX
 
 
 def create_tree(leaves):
@@ -55,7 +52,8 @@ def adjust_tree(tree, leaves, s):
             break
         # 如果败者树中 parent 位置不指向叶子节点的位置
         # 或者 parent 位置的叶子节点被打败(以大为败)，那么需要调整
-        if tree[parent] == -1 or leaves[s]['num'] > leaves[tree[parent]]['num']:
+        if tree[parent] == -1 or \
+                leaves[s]['num'] > leaves[tree[parent]]['num']:
             tmp = s
             s = tree[parent]    # s 指向胜者
             tree[parent] = tmp  # 败者保存到 parent 位置
@@ -158,34 +156,3 @@ def check(file):
                 num = int(line.strip())
                 if num < prev:
                     return False
-
-
-if __name__ == '__main__':
-    input_file = 'input.txt'
-    output_file = 'output.txt'
-
-    # 生成输入文件，只生成 1M 个
-    print('Generating')
-    with open(input_file, 'w') as fd:
-        for i in range(1024):
-            num = random.randint(0, MAX)
-            fd.write('%07d\n' % num)
-
-    # 进行分割，分为8个文件，每个文件 128K 个
-    print('Splitting')
-    temp_files = split(input_file, 128)
-
-    # 进行合并
-    print('Merging')
-    merge(temp_files, output_file)
-
-    # 删除中间文件
-    for f in temp_files:
-        os.remove(f)
-
-    # 检查
-    print('Checking')
-    if check(output_file):
-        print("Success")
-    else:
-        print("Fail")

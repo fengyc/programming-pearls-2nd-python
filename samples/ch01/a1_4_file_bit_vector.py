@@ -14,11 +14,9 @@
 # 1. 重复数据会被去重
 # 2. 使用 c/c++ 操作会更好
 
-import random
 import ctypes
 import math
-
-MAX = int(1e7)
+from . import MAX
 
 BitVector = ctypes.c_ubyte * math.ceil(MAX / 8)
 
@@ -57,8 +55,6 @@ def get_bit(vector, offset):
     :return: 对应的位是否为 1
     """
     byte_index = offset >> 3
-    if vector[byte_index] == 0:
-        return False
     bit_offset = offset & 7
     mask = 1 << bit_offset
     return vector[byte_index] & mask != 0
@@ -80,49 +76,3 @@ def bit_sort(input_file, output_file):
             else:
                 num = int(line.strip())
                 set_bit(vector, num)
-
-
-def check(file):
-    """ 检查文件是否已按小到大排序
-
-    :param file: 待检查文件
-    :return: 是否已排序
-    """
-    with open(file, 'r') as fd:
-        # 第一个整数
-        line = fd.readline()
-        if not line:
-            return True
-        prev = int(line.strip())
-        # 后续整数
-        while True:
-            line = fd.readline()
-            if not line:
-                return True
-            else:
-                num = int(line.strip())
-                if num < prev:
-                    return False
-
-
-if __name__ == '__main__':
-    input_file = 'input.txt'
-    output_file = 'output.txt'
-
-    # 生成输入文件，只生成 1M 个
-    print('Generating')
-    with open(input_file, 'w') as fd:
-        for i in range(1024*1024):
-            num = random.randint(0, MAX)
-            fd.write('%07d\n' % num)
-
-    # 排序
-    print('Sorting')
-    bit_sort(input_file, output_file)
-
-    # 检查
-    print('Checking')
-    if check(output_file):
-        print('Success')
-    else:
-        print('Fail')

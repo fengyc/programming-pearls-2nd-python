@@ -21,10 +21,8 @@
 # 使用败者树，减少归并时的比较次数，K越大加速越明显
 
 import uuid
-import random
-import os
-
-MAX = int(1e7)  #所有数字均不超过 MAX
+import math
+from . import MAX
 
 
 def split(input_file, chunk_size):
@@ -57,96 +55,63 @@ def split(input_file, chunk_size):
     return temp_files
 
 
-def merge(input_files, output_file):
+def merge(input_files, output_file, chunk_size):
     """ 归并多个有序小文件到一个大文件
 
     :param input_files: 输入的有序小文件
     :param output_file: 输出的大文件
+    :param chunk_size: 块大小
     :return:
     """
-    fd_head_map = {}  # 每个文件的描述符号和文件当前整数
+    fd_head_map = {}  # 每个文件的描述符号和文件当前整数缓存和访问下标
+    cache_size = math.floor(chunk_size / (len(input_files) + 1))
     # 打开输入的中间文件
     for f in input_files:
         fd = open(f, 'r')
-        head = fd.readline()
-        if not head:
-            fd.close()
-        else:
-            fd_head_map[fd] = int(head.strip())
-    # 打开输出文件
-    fd_out = open(output_file, 'w')
-
-    # 使用选择最小值输出
-    while len(fd_head_map):
-        min = MAX
-        selected_fd = None
-        for fd in fd_head_map.keys():
-            if min > fd_head_map[fd]:
-                min = fd_head_map[fd]
-                selected_fd = fd
-        # 被选择的文件读取下一个整数，已到文件结束则关闭
-        next_head = selected_fd.readline()
-        if not next_head:
-            fd_head_map.pop(selected_fd)
-            selected_fd.close()
-        else:
-            fd_head_map[selected_fd] = int(next_head)
-        # 当前最小值输出
-        fd_out.write('%07d\n' % min)
-
-    # 本次合并完成
-    fd_out.close()
-
-
-def check(file):
-    """ 检查文件是否已按小到大排序
-
-    :param file: 待检查文件
-    :return: 是否已排序
-    """
-    with open(file, 'r') as fd:
-        # 第一个整数
-        line = fd.readline()
-        if not line:
-            return True
-        prev = int(line.strip())
-        # 后续整数
-        while True:
+        cache = []
+        for i in range(cache_size):
             line = fd.readline()
             if not line:
-                return True
+                fd.close()
+                break
             else:
-                num = int(line.strip())
-                if num < prev:
-                    return False
+                cache.append(int(line.strip()))
+        if cache:
+            fd_head_map[fd] = [cache, 0]
+    # 打开输出文件
+    fd_out = open(output_file, 'w')
+    output_cache = []
 
+    # 使用选择最小值输出
+    while fd_head_map:
+        min = MAX
+        selected_fd = None
+        for fd, head in fd_head_map.items():
+            if min > head[0][head[1]]:
+                min = head[0][head[1]]
+                selected_fd = fd
+        # 被选择的文件更新缓存，已到文件结束则关闭
+        fd_head_map[selected_fd][1] += 1
+        if fd_head_map[selected_fd][1] >= len(fd_head_map[selected_fd][0]):
+            del fd_head_map[selected_fd]
+            cache = []
+            if not selected_fd.closed:
+                for i in range(cache_size):
+                    line = selected_fd.readline()
+                    if not line:
+                        selected_fd.close()
+                        break
+                    else:
+                        cache.append(int(line.strip()))
+            if cache:
+                fd_head_map[selected_fd] = [cache, 0]
 
-if __name__ == '__main__':
-    input_file = 'input.txt'
-    output_file = 'output.txt'
+        # 当前最小值输出
+        output_cache.append(min)
+        if len(output_cache) >= cache_size or not len(fd_head_map):
+            fd_out.writelines(('%07d\n' % num for num in output_cache))
+            del output_cache
+            output_cache = []
 
-    # 生成输入文件，只生成 1M 个
-    print('Generating')
-    with open(input_file, 'w') as fd:
-        for i in range(1024*1024):
-            num = random.randint(0, MAX)
-            fd.write('%07d\n' % num)
-
-    # 进行分割，分为8个文件，每个文件 128K 个
-    print('Splitting')
-    temp_files = split(input_file, 1024*128)
-
-    # 进行合并
-    print('Merging')
-    merge(temp_files, output_file)
-
-    # 删除中间文件
-    for f in temp_files:
-        os.remove(f)
-
-    # 检查
-    print('Checking')
-    if check(output_file):
-        print("Success")
-    else:
-        print("Fail")
+    # 本次合并完成，关闭输出
+    fd_out.close()

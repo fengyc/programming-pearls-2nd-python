@@ -16,9 +16,7 @@
 # 2. 未有处理重复数据，重复数据不影响排序和输出
 # 3. 内部的排序可直接使用字符串(需要更多空间)，或者是转换为数字(需要字符串数字的转换时间)
 
-import random
-
-MAX = int(1e7)
+from . import MAX
 
 
 def sort(input_file, output_file, chunk_size):
@@ -57,49 +55,3 @@ def sort(input_file, output_file, chunk_size):
                 num = int(line.strip())
                 if chunk_min <= num < chunk_max:
                     chunk.append(num)
-
-
-def check(file):
-    """ 检查文件是否已按小到大排序
-
-    :param file: 待检查文件
-    :return: 是否已排序
-    """
-    with open(file, 'r') as fd:
-        # 第一个整数
-        line = fd.readline()
-        if not line:
-            return True
-        prev = int(line.strip())
-        # 后续整数
-        while True:
-            line = fd.readline()
-            if not line:
-                return True
-            else:
-                num = int(line.strip())
-                if num < prev:
-                    return False
-
-
-if __name__ == '__main__':
-    input_file = 'input.txt'
-    output_file = 'output.txt'
-
-    # 生成输入文件，只生成 1M 个
-    print('Generating')
-    with open(input_file, 'w') as fd:
-        for i in range(1024*1024):
-            num = random.randint(0, MAX)
-            fd.write('%07d\n' % num)
-
-    # 排序
-    print('Sorting')
-    sort(input_file, output_file, int(1e6))
-
-    # 检查
-    print('Checking')
-    if check(output_file):
-        print('Success')
-    else:
-        print('Fail')
