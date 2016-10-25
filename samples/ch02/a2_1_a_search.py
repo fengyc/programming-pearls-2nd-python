@@ -18,7 +18,7 @@ import os
 MEM_SIZE = 300
 
 
-def search_missing_in_memory(array):
+def search_missing_in_memory(array, start, end):
     array.sort()
     prev = array[0]
     for i in range(1, len(array)):
@@ -35,8 +35,9 @@ def search_missing(input_file, k, l=0):
     :param l: 当前划分搜索层次
     :return:
     """
-    # 本次划分的每个区间的大小
+    # 本次划分的每个区间的大小，区间的开始、结束
     interval = 1 << (32 - k * (l + 1))
+    start =
 
     # 如果已能在内存中排序，那么执行内存排序和查找
     if interval <= MEM_SIZE:
@@ -84,3 +85,30 @@ def search_missing(input_file, k, l=0):
             os.remove(temp_file)
     # 下一轮迭代查找
     return search_missing(temp_files[i], k, l + 1)
+
+
+def test_search_missing():
+    import random
+
+    # 生成数据，10000 个整数
+    data = []
+    for i in range(10000):
+        data.append(i)
+    for i in range(10000):
+        r = random.randint(0, 10000)
+        temp = data[i]
+        data[i] = data[r]
+        data[r] = temp
+    # 去掉任意一个
+    r = random.randint(0, 10000)
+    missing_value = data[r]
+    del data[r]
+    # 保存到输入文件
+    with open('input.txt', 'w') as fd:
+        fd.writelines(('%d\n' % num for num in data))
+
+    # 进行搜索
+    result = search_missing('input.txt', 2)
+
+    assert result == missing_value
+
