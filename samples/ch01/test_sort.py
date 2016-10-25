@@ -61,9 +61,9 @@ def test_merge_sort_1(input_file):
     try:
         print('Testing ch01 -> merge sort 1')
         print('Splitting')
-        temp_files = split(input_file, 1024*1024//4)
+        temp_files = split(input_file, 1024*1024/4)
         print('Merging')
-        merge(temp_files, 'output.txt')
+        merge(temp_files, 'output.txt', 1024*1024/4)
         print('Checking')
         result = check('output.txt')
         assert result
@@ -79,7 +79,7 @@ def test_merge_sort_2(input_file):
     try:
         print('Testing ch01 -> merge sort 2')
         print('Splitting')
-        temp_files = split(input_file, 1024*1024//4)
+        temp_files = split(input_file, 1024*1024/4)
         print('Merging')
         merge(temp_files, 'output.txt')
         print('Checking')
@@ -95,7 +95,7 @@ def test_multi_select_sort(input_file):
 
     print('Testing ch01 -> multi select sort')
     print('Sorting')
-    sort(input_file, 'output.txt', 1024*1024//4)
+    sort(input_file, 'output.txt', 1024*1024/4)
     print('Checking')
     result = check('output.txt')
     assert result

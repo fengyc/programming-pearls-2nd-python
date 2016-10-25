@@ -21,6 +21,7 @@
 # 使用败者树，减少归并时的比较次数，K越大加速越明显
 
 import uuid
+import math
 from . import MAX
 
 
@@ -54,42 +55,63 @@ def split(input_file, chunk_size):
     return temp_files
 
 
-def merge(input_files, output_file):
+def merge(input_files, output_file, chunk_size):
     """ 归并多个有序小文件到一个大文件
 
     :param input_files: 输入的有序小文件
     :param output_file: 输出的大文件
+    :param chunk_size: 块大小
     :return:
     """
-    fd_head_map = {}  # 每个文件的描述符号和文件当前整数
+    fd_head_map = {}  # 每个文件的描述符号和文件当前整数缓存和访问下标
+    cache_size = math.floor(chunk_size / (len(input_files) + 1))
     # 打开输入的中间文件
     for f in input_files:
         fd = open(f, 'r')
-        head = fd.readline()
-        if not head:
-            fd.close()
-        else:
-            fd_head_map[fd] = int(head.strip())
+        cache = []
+        for i in range(cache_size):
+            line = fd.readline()
+            if not line:
+                fd.close()
+                break
+            else:
+                cache.append(int(line.strip()))
+        if cache:
+            fd_head_map[fd] = [cache, 0]
     # 打开输出文件
     fd_out = open(output_file, 'w')
+    output_cache = []
 
     # 使用选择最小值输出
-    while len(fd_head_map):
+    while fd_head_map:
         min = MAX
         selected_fd = None
-        for fd in fd_head_map.keys():
-            if min > fd_head_map[fd]:
-                min = fd_head_map[fd]
+        for fd, head in fd_head_map.items():
+            if min > head[0][head[1]]:
+                min = head[0][head[1]]
                 selected_fd = fd
-        # 被选择的文件读取下一个整数，已到文件结束则关闭
-        next_head = selected_fd.readline()
-        if not next_head:
-            fd_head_map.pop(selected_fd)
-            selected_fd.close()
-        else:
-            fd_head_map[selected_fd] = int(next_head)
-        # 当前最小值输出
-        fd_out.write('%07d\n' % min)
+        # 被选择的文件更新缓存，已到文件结束则关闭
+        fd_head_map[selected_fd][1] += 1
+        if fd_head_map[selected_fd][1] >= len(fd_head_map[selected_fd][0]):
+            del fd_head_map[selected_fd]
+            cache = []
+            if not selected_fd.closed:
+                for i in range(cache_size):
+                    line = selected_fd.readline()
+                    if not line:
+                        selected_fd.close()
+                        break
+                    else:
+                        cache.append(int(line.strip()))
+            if cache:
+                fd_head_map[selected_fd] = [cache, 0]
 
-    # 本次合并完成
+        # 当前最小值输出
+        output_cache.append(min)
+        if len(output_cache) >= cache_size or not len(fd_head_map):
+            fd_out.writelines(('%07d\n' % num for num in output_cache))
+            del output_cache
+            output_cache = []
+
+    # 本次合并完成，关闭输出
     fd_out.close()
