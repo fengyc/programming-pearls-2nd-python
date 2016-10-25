@@ -18,12 +18,12 @@ import os
 MEM_SIZE = 300
 
 
-def search_missing_in_memory(l):
-    l.sort()
-    prev = l[0]
-    for i in range(1, len(l)):
-        if l[i] != prev + 1:
-            return l[i]
+def search_missing_in_memory(array):
+    array.sort()
+    prev = array[0]
+    for i in range(1, len(array)):
+        if array[i] != prev + 1:
+            return array[i]
     return None
 
 
@@ -40,14 +40,14 @@ def search_missing(input_file, k, l=0):
 
     # 如果已能在内存中排序，那么执行内存排序和查找
     if interval <= MEM_SIZE:
-        l = []
+        array = []
         with open(input_file, 'r') as fd:
             while True:
                 line = fd.readline()
                 if not line:
                     break
-                l.append(int(line.strip()))
-        result = search_missing_in_memory(l)
+                    array.append(int(line.strip()))
+        result = search_missing_in_memory(array)
         return result
 
     # 需要进行文件划分
