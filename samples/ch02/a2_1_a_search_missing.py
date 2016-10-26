@@ -17,7 +17,7 @@ import uuid
 import os
 import math
 
-SIZE = 300
+MEM_SIZE = 300
 
 
 def search_missing_in_memory(array, start, end):
@@ -40,17 +40,17 @@ def search_missing_in_memory(array, start, end):
     return None
 
 
-def search_missing(input_file, k=2, start=0, end=0xffffffff):
+def search_missing(input_file, start, end, k=2):
     """ 在无重复的输入文件中查找缺少的整数，输入文件的整数范围为 [start, end]
 
     :param input_file: 输入文件路径
-    :param k: 划分为 k 等分
     :param start: 范围开始
     :param end: 范围结束
+    :param k: 划分为 k 等分
     :return:
     """
     # 如果已能在内存中排序，那么执行内存排序和查找
-    if end - start + 1 <= SIZE:
+    if end - start + 1 <= MEM_SIZE:
         array = []
         with open(input_file, 'r') as fd:
             while True:
@@ -62,21 +62,10 @@ def search_missing(input_file, k=2, start=0, end=0xffffffff):
         return result
 
     # 分为 k 等分时，每段应该有 ceil((max - min + 1) / k) 个
-    zone_size = math.ceil((end - start + 1) / k)
-    # 每个等分中的最小值、最大值分别为
-    zones = [(start, start + zone_size - 1)]
-    for i in range(1, k - 1):
-        zones.append((zones[i-1][0] + zone_size, zones[i-1][1] + zone_size))
-    # 最后一个区间特殊处理
-    zones.append((zones[-1][0] + zone_size, end))
-
-    # 进行文件划分，生成的临时文件名，共 k 个
-    temp_files = dict((i, uuid.uuid4().hex) for i in range(k))
-    # 临时文件的计数
-    counts = dict((i, 0) for i in range(k))
-    # 临时文件对应的 fd
-    temp_fds = dict((i, open(temp_files[i], 'w')) for i in range(k))
-
+    chunk_size = math.ceil((end - start + 1) / k)
+    temp_files = [uuid.uuid4().hex for i in range(k)]   # 临时文件名
+    temp_counts = [0 for i in range(k)]                 # 每段的计数
+    temp_fds = [open(temp_files[i], 'w') for i in range(k)]
     # 开始进行划分
     with open(input_file, 'r') as input_fd:
         while True:
@@ -84,31 +73,29 @@ def search_missing(input_file, k=2, start=0, end=0xffffffff):
             if not line:
                 break
             num = int(line.strip())
-            zone_idx = math.floor((num - start) / zone_size)
-            selected_fd = temp_fds[zone_idx]
-            selected_fd.write('%d\n' % num)
-            counts[zone_idx] += 1
-    for fd in temp_fds.values():
+            idx = (num - start) // chunk_size
+            temp_fds[idx].write('%d\n' % num)
+            temp_counts[idx] += 1
+    for fd in temp_fds:
         fd.close()
-
     # 计数确定缺少的整数落在那个区间，应从小到大计算
     missing = None
-    missing_start = None
-    missing_end = None
-    for i, c in counts.items():
-        if c < zone_size:
+    for i in range(k):
+        if temp_counts[i] < chunk_size:
             missing = i
-            missing_start = start + i * zone_size
-            missing_end = missing_start - 1 + zone_size
             break
     # 清理临时文件
-    for i, temp_file in temp_files.items():
+    for i in range(k):
         if i != missing:
-            os.remove(temp_file)
+            os.remove(temp_files[i])
     # 下一轮迭代查找
     if missing is not None:
-        result = search_missing(temp_files[missing], k, missing_start,
-                                missing_end)
+        missing_start = start + missing * chunk_size
+        missing_end = missing_start - 1 + chunk_size
+        if missing_end > end:
+            missing_end = end
+        result = search_missing(temp_files[missing], missing_start,
+                                missing_end, k)
         # 清理剩下的临时文件
         os.remove(temp_files[missing])
         return result
@@ -119,16 +106,14 @@ def test_search_missing():
     import random
 
     # 生成数据，10000 个整数
-    data = []
-    for i in range(10000):
-        data.append(i)
+    data = [i for i in range(10000)]
     for i in range(10000):
         r = random.randint(0, 9999)
         temp = data[i]
         data[i] = data[r]
         data[r] = temp
     # 去掉任意一个
-    r = random.randint(0, 10000)
+    r = random.randint(0, 9999)
     missing_value = data[r]
     del data[r]
     # 保存到输入文件
@@ -136,5 +121,5 @@ def test_search_missing():
         fd.writelines(('%d\n' % num for num in data))
 
     # 进行搜索
-    result = search_missing('input.txt', 8, 0, 9999)
+    result = search_missing('input.txt', 0, 9999, 8)
     assert result == missing_value

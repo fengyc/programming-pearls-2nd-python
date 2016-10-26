@@ -10,7 +10,7 @@ import uuid
 import math
 import os
 
-MEM_SIZE = 2000
+MEM_SIZE = 1000
 
 
 def search_duplicated_in_memory(array):
@@ -66,18 +66,18 @@ def search_duplicated(input_file, start, end, k=2):
     for i in range(k):
         if i != duplicated:
             os.remove(temp_files[i])
-    # 继续在这段内搜索
-    duplicated_start = start + chunk_size * duplicated
-    duplicated_end = start - 1 + chunk_size * (duplicated + 1)
-    if duplicated_end > end:
-        duplicated_end = end
-    result = search_duplicated(temp_files[duplicated], duplicated_start,
-                               duplicated_end, k)
-    # 清理有重复数据的中间文件
+    # 找到了有重复数据的段
     if duplicated is not None:
+        # 继续在这段内搜索
+        duplicated_start = start + chunk_size * duplicated
+        duplicated_end = duplicated_start - 1 + chunk_size
+        if duplicated_end > end:
+            duplicated_end = end
+        result = search_duplicated(temp_files[duplicated], duplicated_start,
+                                   duplicated_end, k)
         os.remove(temp_files[duplicated])
-
-    return result
+        return result
+    return None
 
 
 def test_search_duplicated():

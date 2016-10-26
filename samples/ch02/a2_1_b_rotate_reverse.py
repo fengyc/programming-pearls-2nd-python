@@ -20,14 +20,14 @@ def rotate(array, m):
     """ 进行旋转
 
     :param array: 数组
-    :param m: 左分段结束下标
+    :param m: 前 m 个
     """
-    reverse(array, 0, m)
-    reverse(array, m + 1, len(array) - 1)
+    reverse(array, 0, m - 1)
+    reverse(array, m, len(array) - 1)
     reverse(array, 0, len(array) - 1)
 
 
 def test_rotate():
     array = [i for i in range(10)]
-    rotate(array, 3)
+    rotate(array, 4)
     assert array == [4, 5, 6, 7, 8, 9, 0, 1, 2, 3]
