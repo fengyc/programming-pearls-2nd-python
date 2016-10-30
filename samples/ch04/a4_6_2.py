@@ -11,16 +11,16 @@
 
 
 def binary_search_first(data, t):
-    n = len(data)
-    low = 0
-    height = len(data) - 1
+    """ 二分搜索，返回第一个匹配数据的下标 """
 
-    while low <= height:
+    low = 0
+    high = len(data) - 1
+    while low <= high:
         if data[low] == t:
             return low
-        middle = (height - low) // 2 + low
+        middle = (high - low) // 2 + low
         if data[middle] > t:
-            height = middle - 1
+            high = middle - 1
         elif data[middle] < t:
             low = middle + 1
         else:
@@ -28,8 +28,7 @@ def binary_search_first(data, t):
             if data[q] < t:
                 low = q + 1
             else:
-                height = q
-
+                high = q
     return None
 
 
@@ -42,5 +41,7 @@ def test_search():
         data.insert(x, x)
 
     k = binary_search_first(data, x)
-
     assert x == k
+
+    k = binary_search_first(data, 1000)
+    assert k is None
